@@ -1,0 +1,177 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. UNO.
+
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT UNO-FILE ASSIGN TO "UNO.DAT"
+               ORGANIZATION IS LINE SEQUENTIAL
+               FILE STATUS IS FILE-STATUS.
+
+           SELECT UNO-OUT-FILE ASSIGN TO "UNO-OUT.DAT"
+               ORGANIZATION IS LINE SEQUENTIAL.
+
+       DATA DIVISION.
+       FILE SECTION.
+
+       FD UNO-FILE.
+       01 UNO-RECORD.
+           05 UNO-PROD-CODE  PIC X(13).
+           05 UNO-PROD-NAME  PIC X(20).
+           05 UNO-PROD-PRICE PIC 9(5)V99.
+
+       FD UNO-OUT-FILE.
+       01 OUT-REC PIC X(80).
+
+       WORKING-STORAGE SECTION.
+
+       01 FILE-STATUS  PIC XX.
+       01 CHOICE       PIC 9.
+       01 WS-ANSWER    PIC X.
+       01 WS-COUNT     PIC 9(3) VALUE 0.
+       01 WS-EXIT-FLAG PIC X VALUE "N".
+
+       01 WS-PRODUCT-TABLE.
+           05 WS-PRODUCT OCCURS 100 TIMES INDEXED BY IDX.
+               10 WS-PROD-CODE  PIC X(13).
+               10 WS-PROD-NAME  PIC X(20).
+               10 WS-PROD-PRICE PIC 9(5)V99.
+
+       
+       01 HDG-1.
+           02 FILLER PIC X(20) VALUE SPACES.
+           02 FILLER PIC X(10) VALUE "PAREL INC.".
+
+       01 HDG-2.
+           02 FILLER PIC X(20) VALUE SPACES.
+           02 FILLER PIC X(10) VALUE "DON FABIAN".
+
+       01 HDG-3.
+           02 FILLER PIC X(13) VALUE "PRODUCT CODE".
+           02 FILLER PIC X(7)  VALUE SPACES.
+           02 FILLER PIC X(12) VALUE "PRODUCT NAME".
+           02 FILLER PIC X(7)  VALUE SPACES.
+           02 FILLER PIC X(5)  VALUE "PRICE".
+           02 FILLER PIC X(36) VALUE SPACES.
+
+    
+       01 PRINT-LINE.
+           02 PROD-CODE-OUT PIC X(13).
+           02 FILLER        PIC X(7) VALUE SPACES.
+           02 PROD-NAME-OUT PIC X(20).
+           02 FILLER        PIC X(6) VALUE SPACES.
+           02 PRICE-OUT     PIC ZZZZZ.ZZ.
+           02 FILLER        PIC X(21) VALUE SPACES.
+
+       PROCEDURE DIVISION.
+       MAIN-PROGRAM.
+
+           PERFORM UNTIL WS-EXIT-FLAG = "Y"
+
+               DISPLAY " "
+               DISPLAY "===== MAIN MENU ====="
+               DISPLAY "1. ADD PRODUCTS"
+               DISPLAY "2. DISPLAY PRODUCTS (MEMORY)"
+               DISPLAY "3. WRITE REPORT FILE"
+               DISPLAY "4. EXIT"
+               ACCEPT CHOICE
+
+               EVALUATE CHOICE
+                   WHEN 1
+                       PERFORM ADD-PRODUCTS
+                   WHEN 2
+                       PERFORM DISPLAY-PRODUCTS
+                   WHEN 3
+                       PERFORM REPORT-PRODUCTS
+                   WHEN 4
+                       MOVE "Y" TO WS-EXIT-FLAG
+                   WHEN OTHER
+                       DISPLAY "INVALID CHOICE"
+               END-EVALUATE
+
+           END-PERFORM.
+
+           STOP RUN.
+           .
+
+       ADD-PRODUCTS.
+
+           OPEN EXTEND UNO-FILE
+           IF FILE-STATUS NOT = "00"
+               OPEN OUTPUT UNO-FILE
+           END-IF
+
+           MOVE "Y" TO WS-ANSWER
+
+           PERFORM UNTIL WS-ANSWER = "N" OR "n" OR WS-COUNT = 100
+
+               ADD 1 TO WS-COUNT
+               SET IDX TO WS-COUNT
+
+               DISPLAY "Enter product code:"
+               ACCEPT WS-PROD-CODE(IDX)
+
+               DISPLAY "Enter product name:"
+               ACCEPT WS-PROD-NAME(IDX)
+
+               DISPLAY "Enter product price:"
+               ACCEPT WS-PROD-PRICE(IDX)
+
+               MOVE WS-PROD-CODE(IDX)  TO UNO-PROD-CODE
+               MOVE WS-PROD-NAME(IDX)  TO UNO-PROD-NAME
+               MOVE WS-PROD-PRICE(IDX) TO UNO-PROD-PRICE
+
+               WRITE UNO-RECORD
+
+               DISPLAY "Add another product? (Y/N):"
+               ACCEPT WS-ANSWER
+
+               IF WS-ANSWER = "n"
+                   MOVE "N" TO WS-ANSWER
+               END-IF
+
+               IF WS-ANSWER NOT = "Y"
+                   MOVE "N" TO WS-ANSWER
+               END-IF
+
+           END-PERFORM
+
+           CLOSE UNO-FILE.
+           
+
+       DISPLAY-PRODUCTS.
+
+           IF WS-COUNT = 0
+               DISPLAY "NO PRODUCTS IN MEMORY"
+           ELSE
+               DISPLAY "=== PRODUCTS (MEMORY) ==="
+               PERFORM VARYING IDX FROM 1 BY 1 UNTIL IDX > WS-COUNT
+                   DISPLAY WS-PROD-CODE(IDX) " "
+                           WS-PROD-NAME(IDX) " "
+                           WS-PROD-PRICE(IDX)
+               END-PERFORM
+           END-IF.
+           
+
+       REPORT-PRODUCTS.
+
+           OPEN OUTPUT UNO-OUT-FILE
+
+           WRITE OUT-REC FROM HDG-1
+           WRITE OUT-REC FROM HDG-2
+           WRITE OUT-REC FROM HDG-3
+
+           PERFORM VARYING IDX FROM 1 BY 1 UNTIL IDX > WS-COUNT
+
+               MOVE WS-PROD-CODE(IDX)  TO PROD-CODE-OUT
+               MOVE WS-PROD-NAME(IDX)  TO PROD-NAME-OUT
+               MOVE WS-PROD-PRICE(IDX) TO PRICE-OUT
+
+               WRITE OUT-REC FROM PRINT-LINE
+
+           END-PERFORM
+
+           CLOSE UNO-OUT-FILE
+           DISPLAY "REPORT WRITTEN TO UNO-OUT.DAT".
+       
+           STOP RUN.
