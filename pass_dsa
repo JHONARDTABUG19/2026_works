@@ -1,11 +1,11 @@
 import random
 import string
 
-# Store passwords in memory
-stored_passwords = []
+# Store passwords as a list of dictionaries
+passwords = []
 
-# Function to generate password
-def generate_password(min_length, numbers=True, special_characters=True):
+# Generate password
+def generate_password(length, numbers=True, special_characters=True):
     letters = string.ascii_letters
     digits = string.digits
     special = string.punctuation
@@ -20,7 +20,8 @@ def generate_password(min_length, numbers=True, special_characters=True):
     has_number = False
     has_special = False
 
-    while len(pwd) < min_length or (numbers and not has_number) or (special_characters and not has_special):
+    # Generate password of exact length
+    while len(pwd) < length:
         new_char = random.choice(characters)
         pwd += new_char
 
@@ -29,201 +30,149 @@ def generate_password(min_length, numbers=True, special_characters=True):
         if new_char in special:
             has_special = True
 
+    # Ensure required characters are present
+    if numbers and not has_number:
+        pos = random.randint(0, length - 1)
+        pwd = pwd[:pos] + random.choice(digits) + pwd[pos+1:]
+
+    if special_characters and not has_special:
+        pos = random.randint(0, length - 1)
+        pwd = pwd[:pos] + random.choice(special) + pwd[pos+1:]
+
     return pwd
 
-
-# Function to check password strength
+# Check password strength
 def check_password_strength(password):
     length = len(password)
     has_number = any(char.isdigit() for char in password)
     has_special = any(char in string.punctuation for char in password)
-
-    if length >= 12 and has_number and has_special:
+    
+    # Strongest
+    if length >= 16 and has_number and has_special:
+        return "Strongest"
+    
+    # Very Strong
+    elif length >= 16 and (has_number or has_special):
+        return "Very Strong"
+    
+    # Strong
+    elif length >= 12 and has_number and has_special:
         return "Strong"
-    elif length >= 10 and (has_number or has_special):
+    
+    # Moderate
+    elif length >= 12 and (has_number or has_special):
         return "Moderate"
+    elif length >= 8 and has_number and has_special:
+        return "Moderate"
+    
+    # Weak
     else:
         return "Weak"
 
 
-# Function to get valid integer input
-def get_valid_int(prompt, min_value=None, max_value=None):
-    while True:
-        try:
-            value = int(input(prompt))
-            if min_value is not None and value < min_value:
-                print(f"Please enter a number of at least {min_value}.")
-                continue
-            if max_value is not None and value > max_value:
-                print(f"Please enter a number no greater than {max_value}.")
-                continue
-            return value
-        except ValueError:
-            print("Invalid input. Please enter a number.")
 
-
-# Function to get yes/no input
-def get_yes_no(prompt):
-    while True:
-        response = input(prompt).lower()
-        if response in ['y', 'yes']:
-            return True
-        elif response in ['n', 'no']:
-            return False
-        else:
-            print("Invalid input. Please enter 'y' or 'n'.")
-
-
-# Function to get non-empty string
-def get_non_empty_string(prompt):
-    while True:
-        value = input(prompt).strip()
-        if value:
-            return value
-        else:
-            print("Input cannot be empty. Please try again.")
-
-
-# Function to display passwords
-def display_passwords(password_list):
-    if not password_list:
-        print("No passwords to display.")
-        return False
     
-    print(f"\nTotal passwords: {len(password_list)}\n")
-    for idx, entry in enumerate(password_list, 1):
-        print(f"{idx}. Label: {entry['label']}")
-        print(f"   Password: {entry['password']}")
-        print(f"   Strength: {entry['strength']}")
-        print("-" * 40)
-    return True
+def delete_password(name_to_delete):
+    if not passwords:
+        print("No passwords to delete.")
+        return
+    else:
+        found = False
+        for i, entry in enumerate(passwords):
+            if entry["name"].lower() == name_to_delete.lower():
+                    passwords.pop(i)  # Remove the dictionary at index i
+                    print(f"Password {name_to_delete} deleted successfully.\n")
+            else:
+                print("Deletion canceled.")
+            found = True
+            break
 
+        if not found:
+            print("No password found with that name.")
 
-# Function to search passwords using linear search
-def search_passwords(search_term):
-    search_term = search_term.lower()
-    results = []
-    
-    for entry in stored_passwords:
-        if search_term in entry['label'].lower():
-            results.append(entry)
-    
-    return results
+def search_password_by_name(name):
+    for entry in passwords:
+        if entry['name'].lower() == name.lower():
+            return entry
+    return None
 
-
-# Function to sort passwords by strength
 def sort_passwords_by_strength():
-    # Define strength order: Weak < Moderate < Strong
-    strength_order = {"Weak": 1, "Moderate": 2, "Strong": 3}
-    
-    # Sort using the strength order
-    sorted_list = sorted(stored_passwords, key=lambda x: strength_order[x['strength']])
-    return sorted_list
+    strength_order = {"Weak": 1, "Moderate": 2, "Strong": 3, "Very Strong": 4, "Strongest": 5}
+    passwords.sort(key=lambda x: strength_order.get(x['strength'], 0))
+    print("Passwords sorted by strength.")
+
+    for i , entry in enumerate(passwords, start=1):
+        print(f"{i}. Name: {entry['name']} Password: {entry['password']} Strength: {entry['strength']}")
+        print("")
 
 
-# Function to delete password
-def delete_password():
-    if not stored_passwords:
-        print("\nNo passwords stored to delete.")
-        return
-    
-    print("\n--- Delete Password ---")
-    display_passwords(stored_passwords)
-    
-    index = get_valid_int("\nEnter the number of the password to delete (0 to cancel): ", 0, len(stored_passwords))
-    
-    if index == 0:
-        print("Delete operation cancelled.")
-        return
-    
-    deleted_entry = stored_passwords.pop(index - 1)
-    print(f"\nPassword for '{deleted_entry['label']}' has been deleted successfully!")
-
-
-# Main Menu
+# Main menu
 while True:
-    print("\n" + "="*40)
-    print("PASSWORD MANAGER MENU")
-    print("="*40)
-    print("1. Generate Password")
+    print("\nPASSWORD MENU")
+    print("1. Generate and Save Password")
     print("2. Check Password Strength")
-    print("3. View All Stored Passwords")
-    print("4. Search Passwords")
-    print("5. Sort Passwords (Weak to Strong)")
-    print("6. Delete Password")
+    print("3. View Saved Passwords")
+    print("4. Delete a Password")
+    print("5. Search your unique password")
+    print("6. Sort your passwords by strength")
     print("7. Exit")
-    print("="*40)
 
-    choice = input("Enter your choice (1-7): ").strip()
-
+    choice = input("Enter choice: ")
+    
     if choice == "1":
-        print("\n--- Generate Password ---")
-        min_length = get_valid_int("Enter minimum length (at least 8): ", 8)
-        has_numbers = get_yes_no("Include numbers (y/n)? ")
-        has_special = get_yes_no("Include special characters (y/n)? ")
+        name = input("Enter password name (e.g. Gmail, Facebook): ")
+        min_length = int(input("Enter minimum length: "))
+        numbers = input("Include numbers (y/n)? ").lower() == "y"
+        special = input("Include special characters (y/n)? ").lower() == "y"
 
-        password = generate_password(min_length, has_numbers, has_special)
-        strength = check_password_strength(password)
-        
-        print(f"\nGenerated Password: {password}")
-        print(f"Password Strength: {strength}")
-        
-        save = get_yes_no("\nWould you like to save this password (y/n)? ")
-        if save:
-            label = get_non_empty_string("Enter a label for this password (e.g., 'Gmail', 'Facebook'): ")
-            stored_passwords.append({"label": label, "password": password, "strength": strength})
-            print(f"Password saved successfully under '{label}'!")
+        password = generate_password(min_length, numbers, special)
+        passwords.append({"name": name, "password": password, "strength": check_password_strength(password)})
+        print("-"*50)
+        print(f"Password saved!\nName: {name}\nPassword: {password}\nStrength: {check_password_strength(password)}\n")
 
     elif choice == "2":
-        print("\n--- Check Password Strength ---")
-        user_password = get_non_empty_string("Enter password to check strength: ")
-        strength = check_password_strength(user_password)
-        print(f"Password Strength: {strength}")
-        
-        # Provide feedback
-        if strength == "Weak":
-            print("\nTips: Use at least 8 characters with numbers or special characters.")
-        elif strength == "Moderate":
-            print("\nTips: Use at least 12 characters with both numbers and special characters for a strong password.")
-        else:
-            print("\nGreat job! Your password is strong.")
+        password = input("Enter password to check: ")
+        print("Password Strength:", check_password_strength(password))
 
     elif choice == "3":
-        print("\n--- Stored Passwords ---")
-        display_passwords(stored_passwords)
+        if not passwords:
+            print("\nNo passwords saved.\n")
+        else:
+            print("\nSaved Passwords:")
+            for i, entry in enumerate(passwords, start=1):
+                print(f"{i}. Name: {entry['name']} Password: {entry['password']} Strength: {entry['strength']}")
+                print("")
 
     elif choice == "4":
-        print("\n--- Search Passwords ---")
-        if not stored_passwords:
-            print("No passwords stored to search.")
-        else:
-            search_term = get_non_empty_string("Enter label to search for: ")
-            results = search_passwords(search_term)
-            
-            if results:
-                print(f"\nFound {len(results)} matching password(s):\n")
-                for idx, entry in enumerate(results, 1):
-                    print(f"{idx}. Label: {entry['label']}")
-                    print(f"   Password: {entry['password']}")
-                    print(f"   Strength: {entry['strength']}")
-                    print("-" * 40)
-            else:
-                print(f"\nNo passwords found matching '{search_term}'.")
+        name_to_delete = input("Enter password name to delete: ")
+        
+        delete_password(name_to_delete)
 
     elif choice == "5":
-        print("\n--- Sort Passwords (Weak to Strong) ---")
-        if not stored_passwords:
-            print("No passwords stored to sort.")
-        else:
-            sorted_list = sort_passwords_by_strength()
-            display_passwords(sorted_list)
+        name_to_search = input("do you want to search by (1)name code or by (2)password?: ")
+        
+        if name_to_search == "1":
+            name_code = input("Enter password name_code to search: ")
+            result = search_password_by_name(name_code)
+            if result:
+                print(f"Password Searched!\n Name: {result['name']}, Password: {result['password']} Strength: {result['strength']}")
+            
+        if name_to_search == "2":
+            password_to_search = input("Enter password to search: ")
+            found = False
+            for entry in passwords:
+                if entry["password"] == password_to_search:
+                    print(f"Password Search!\n Name: {entry['name']}, Password: {entry['password']} Strength: {entry['strength']}")
+                    found = True
+                    break
+            if not found:
+                print("No password found with that password.")
 
     elif choice == "6":
-        delete_password()
 
-    elif choice == "7":
-        print("\nThank you for using Password Manager. Goodbye!")
-        break
+        sort_passwords_by_strength()
 
     else:
-        print("\nInvalid choice. Please enter a number between 1 and 7.")
+        print("Invalid choice.")
+
+
